@@ -71,8 +71,9 @@ function debug_stop_trace() {
 // setTimeout setImmediate
 setTimeout(function () { //prevent timeout
     console.log("[*] Starting script");
+    var onclick_cls_name = 'com.ssports.mobile.video.share.-$$Lambda$ShareDialog$ozr0h1Q2S_Y5_ihq7DdwElE4Oy0'
     Java.perform(function () {
-        var trace_start_cls_name = 'com.ssports.mobile.video.share.-$$Lambda$ShareDialog$ozr0h1Q2S_Y5_ihq7DdwElE4Oy0'
+        var trace_start_cls_name = onclick_cls_name
         trace_hook_onclick(trace_start_cls_name)
         console.log('----------hook成功，可以开始点击！！！-------------')
     })
