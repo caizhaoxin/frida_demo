@@ -34,8 +34,8 @@ function get_instance(cls_name) {
     return ins
 }
 // 开始trace debug的方法  这里暂时简单点硬编码doshare
-function trace_hook_onclick(cls_name) {
-    send({'method': 'get_cls_met_name'}); // 发送空方法，促发
+function trace_hook_onclick() {
+    send({ 'method': 'get_cls_met_name' }); // 发送空方法，促发
     var cls_met_name = ''
     var trace_file_name = ''
     recv(function (received_json_object) {
@@ -51,8 +51,8 @@ function trace_hook_onclick(cls_name) {
         debug_start_trace(trace_file_name)
         this.onClick(view)
         debug_stop_trace()
-        send({'method': 'pull_trace'});
-        recv(function (received_json_object) {}).wait(); //同步阻塞
+        send({ 'method': 'pull_trace' });
+        recv(function (received_json_object) { }).wait(); //同步阻塞
         console.log('-------------------------stop trace-----------------------------')
     }
 }
@@ -67,7 +67,7 @@ function stop_trace(cls_name) {
 // 开始Debug的tarce    Debug.startMethodTracing("log-"+MyDate.getDataStr());
 function debug_start_trace(trace_file_name) {
     var Debug = Java.use('android.os.Debug')
-    var buffsize = 102400000
+    var buffsize = 1024000000
     // 单位 -> 字节， 设得太小会无法缓存
     Debug.startMethodTracing(trace_file_name, buffsize)
 }
@@ -76,12 +76,39 @@ function debug_stop_trace() {
     var Debug = Java.use('android.os.Debug')
     Debug.stopMethodTracing()
 }
+function time_trace() {
+    send({ 'method': 'get_cls_met_name' }); // 发送空方法，促发
+    var cls_met_name = ''
+    var trace_file_name = ''
+    recv(function (received_json_object) {
+        cls_met_name = received_json_object['cls_met_name']
+        trace_file_name = received_json_object['trace_file_name']
+        console.log('hook', cls_met_name, 'successfully');
+    }).wait(); //收到数据之后，再执行下去
+    debug_start_trace(trace_file_name)
+    setTimeout(function () {
+        Java.perform(function () {
+            debug_stop_trace()
+            send({'method': 'pull_trace'});
+            console.log('----------结束trace！！！-------------')
+        })
+    }, 30000)
+}
 // setTimeout setImmediate
 setTimeout(function () { //prevent timeout
     console.log("[*] Starting script");
-    var onclick_cls_name = 'com.ssports.mobile.video.share.-$$Lambda$ShareDialog$ozr0h1Q2S_Y5_ihq7DdwElE4Oy0'
     Java.perform(function () {
-        trace_hook_onclick(onclick_cls_name)
-        console.log('----------hook成功，可以开始点击！！！-------------')
+        time_trace()
+        // console.log('----------hook成功，可以开始点击！！！-------------')
+        // console.log('----------开始trace！！！-------------')
+        // var timestamp = (new Date()).valueOf();
+        // debug_start_trace('czx'+timestamp)
+        // setTimeout(function(){
+        //     Java.perform(function(){
+        //         debug_stop_trace()
+        //         // send({'method': 'pull_trace'});
+        //         console.log('----------结束trace！！！-------------')
+        //     })
+        // },30000)
     })
-}, 3000)
+}, 2000)
