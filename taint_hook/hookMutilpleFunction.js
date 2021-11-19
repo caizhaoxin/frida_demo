@@ -31,6 +31,7 @@ function hook(targetClass, targetMethod, targetArguments) {
     targetClass = targetClass.replace(/\s+/g, "")
     targetMethod = targetMethod.replace(/\s+/g, "")
     targetArguments = targetArguments.replace(/\s+/g, "")
+    var targetArgumentsArr = targetArguments.substr(1, targetArguments.length - 2).split(',')
     // targetClassMethod
     var targetClassMethod = targetClass + ' ' + targetMethod
     //目标类
@@ -47,6 +48,7 @@ function hook(targetClass, targetMethod, targetArguments) {
         var overload = overloads[i]
         var curArguments = getTargetArgumentsByOverload(overload)
         //参数不符合预期， continue！
+        // console.log(curArguments, targetArguments)
         if (curArguments != targetArguments) continue
         hook[targetMethod].overloads[i].implementation = function () {
             console.warn("\n*** entered " + targetClassMethod);
@@ -58,10 +60,24 @@ function hook(targetClass, targetMethod, targetArguments) {
             // });
 
             // 打印参数
-            // if (arguments.length) console.log();
-            // for (var j = 0; j < arguments.length; j++) {
-            //     console.log("arg[" + j + "]: " + arguments[j]);
-            // }
+            if (arguments.length) console.log();
+            var taint = '我有一只'
+            for (var j = 0; j < arguments.length; j++) {
+                // console.log("arg[" + j + "]: " + arguments[j]);
+                // console.log(typeof arguments[i])
+                // console.log(typeof arguments[j])
+                // String
+                if (targetArgumentsArr[j] == 'java.lang.String' && arguments[j].indexOf(taint) != -1) {
+                    console.log(arguments[j])
+                }
+                else if(targetArgumentsArr[j] == '[B'){
+                    var javaString = Java.use('java.lang.String');
+                    var str = javaString.$new(arguments[j]);
+                    console.log(str)
+                }
+                // byte[]
+                // other....
+            }
 
             //打印返回值
             var retval = this[targetMethod].apply(this, arguments); // rare crash (Frida bug?)
@@ -69,22 +85,33 @@ function hook(targetClass, targetMethod, targetArguments) {
             // console.warn("\n*** exiting " + targetClassMethod);
             return retval;
         }
+        // 找到并成功hook到了，结束当前循环
     }
-    console.log('----------------------------')
+    // console.log('----------------------------')
 }
 
 function hook_entry(hook_info) {
     // targetClass, targetMethod, targetArguments
     // console.log(hook_info[0]['targetClass'])
     Java.perform(function () {
+        if (!Java.available) {
+            console.log('java虚拟机未加载！')
+            return
+        }
         for (var i = 0; i < hook_info.length; i++) {
             var targetClass = hook_info[i]['targetClass']
             var targetMethod = hook_info[i]['targetMethod']
             var targetArguments = hook_info[i]['targetArguments']
-            console.log(targetClass, targetMethod, targetArguments)
-            // hook 对应的方法
-            hook(targetClass, targetMethod, targetArguments)
+            // console.log(targetClass, targetMethod, targetArguments)
+            try {
+                // hook 对应的方法
+                hook(targetClass, targetMethod, targetArguments)
+                console.log('hook successfully in: ', targetClass, targetMethod + targetArguments)
+            } catch (err) {
+                console.log('hook error in: ', targetClass, targetMethod + targetArguments)
+            }
         }
+        console.log('end!!')
     })
     // Java.perform(function () {
     //     hook('com.mob.tools.utils.Hashon', 'fromHashMap', '(java.util.HashMap)')
@@ -119,12 +146,13 @@ function hook_set_text() {
 }
 
 // setTimeout setImmediate
-// setTimeout(function () { //prevent timeout
-//     console.log("[*] Starting script");
-//     Java.perform(function () {})
-//     // hook_set_text()
-//     // f1hook('123')
-// }, 1000)
+setTimeout(function () { //prevent timeout
+    console.log("[*] Starting script");
+    Java.perform(function () {
+        // hook('com.mob.tools.utils.Hashon', 'fromHashMap', '(java.util.HashMap)')
+        hook('cn.demo.login.ui.login.LoginActivity', 'click_test', '(java.lang.String,[B)')
+    })
+}, 1000)
 
 // export the rpc API
 rpc.exports = {
