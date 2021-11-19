@@ -77,7 +77,7 @@ function debug_stop_trace() {
     Debug.stopMethodTracing()
 }
 function time_trace() {
-    send({ 'method': 'get_cls_met_name' }); // 发送空方法，促发
+    // send({ 'method': 'get_cls_met_name' }); // 发送空方法，促发
     var cls_met_name = ''
     var trace_file_name = ''
     recv(function (received_json_object) {
@@ -98,8 +98,9 @@ function time_trace() {
 setTimeout(function () { //prevent timeout
     console.log("[*] Starting script");
     Java.perform(function () {
-        time_trace()
-        // console.log('----------hook成功，可以开始点击！！！-------------')
+        // time_trace()
+        trace_hook_onclick()
+        console.log('----------hook成功，可以开始点击！！！-------------')
         // console.log('----------开始trace！！！-------------')
         // var timestamp = (new Date()).valueOf();
         // debug_start_trace('czx'+timestamp)

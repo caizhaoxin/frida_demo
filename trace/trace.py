@@ -34,7 +34,7 @@ def pull_trace():
     print('pulling trace file')
     os.system('adb pull /sdcard/Android/data/{}/files/{}.trace .'.format(apk_name, dt_ms))
     print('creating trace txt')
-    # os.system('java -jar trace2txt.jar -s {}.trace -t {}.txt -f'.format(dt_ms, dt_ms))
+    os.system('java -jar trace2txt.jar -s {}.trace -t {}.txt -f'.format(dt_ms, dt_ms))
     print('done!')
     # print('adb pull /sdcard/Android/data/{}/files/{}.trace .'.format(apk_name, dt_ms))
     script.post({})  # 将JSON对象发送回去
