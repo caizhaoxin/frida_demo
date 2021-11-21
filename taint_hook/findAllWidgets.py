@@ -2,6 +2,8 @@ import time
 from typing import List
 import frida
 import base64
+from xml.dom.minidom import parse
+import os
 
 # apk_name = 'com.cns.mc.activity'
 apk_name = 'cn.demo.login'
@@ -52,13 +54,38 @@ script.load()
 command = ""
 while 1 == 1:
     command = input(
-        "Enter command:\n1: Exit\n2: Call secret function\nchoice:")
+        "Enter command:\n1: Exit\n2: Call secret function\n3: get share content\nchoice:")
     if command == "1":
         break
     elif command == "2":  # 在这里调用
-        hook_info = read_sink_file()
-        # hook_info.append({'targetClass': 'com.mob.tools.utils.Hashon',
-        #                   'targetMethod': 'fromHashMap',
-        #                   'targetArguments': '(java.util.HashMap)'})
+        hook_info = []
+        hook_info.append({'targetClass': 'com.mob.tools.utils.Hashon',
+                          'targetMethod': 'fromHashMap',
+                          'targetArguments': '(java.util.HashMap)'})
         script.exports.hookentry(hook_info)
-    print('----------------------------------------------------------')
+    elif command == "3":
+        #这个是将当前的页面的内容全部获取，并解析分享的内容
+        cmd1 = "adb shell uiautomator dump /sdcard/ui1.xml"
+        os.system(cmd1)
+
+        cmd2 = "adb pull /sdcard/ui1.xml ."
+        os.system(cmd2)
+
+        # 读取文件
+        dom = parse('ui1.xml')
+        # 获取文档元素对象
+        data = dom.documentElement
+
+
+        share_content = []
+        # 获取 node
+        nodes = data.getElementsByTagName('node')
+
+        for node_i in nodes:
+            node_text = node_i.getAttribute('text')
+            if node_text != "":
+                share_content.append(node_text)
+
+        script.exports.getsharecontent(share_content)
+    
+    print("--------------------------------------------------")

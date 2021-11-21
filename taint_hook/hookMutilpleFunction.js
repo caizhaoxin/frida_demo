@@ -1,4 +1,8 @@
 //-------------------------util--------------------------------
+
+//分享的内容
+var global_shareContent = []
+
 // 打印调用栈
 function printStack() {
     Java.perform(function () {
@@ -14,6 +18,11 @@ function printStack() {
             Exception.$dispose();
         }
     });
+}
+
+function get_share_content(share_content){
+    global_shareContent = share_content
+    console.log(global_shareContent)
 }
 // js: string 换 byte数组
 function stringToByte(str) {
@@ -234,5 +243,6 @@ setTimeout(function () { //prevent timeout
 
 // export the rpc API
 rpc.exports = {
-    hookentry: hook_entry //导出名不可以有大写字母或者下划线
+    hookentry: hook_entry, //导出名不可以有大写字母或者下划线
+    getsharecontent: get_share_content
 };
