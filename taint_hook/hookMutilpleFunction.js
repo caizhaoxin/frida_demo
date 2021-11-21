@@ -169,7 +169,7 @@ function hook(targetClass, targetReturn, targetMethod, targetArguments) {
                     var str = javaString.$new(retval);
                     str += taint
                     console.log('str'+str)
-                    retval = Java.array('byte', stringToByte('傻逼！！！'));
+                    retval = Java.array('byte', stringToByte(str));
                 }
             }
             // console.log("\nretval: " + retval);
