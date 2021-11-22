@@ -20,10 +20,26 @@ function printStack() {
     });
 }
 
+
+//获取到发送到微信的分享内容
 function get_share_content(share_content){
-    global_shareContent = share_content
-    console.log(global_shareContent)
+    var shareContent = share_content
+    //将空的参数去除
+    for(var i = 1;i < shareContent.length;i++){
+        if(shareContent[i] == "null"){
+            continue
+        }
+            
+
+        global_shareContent.push(shareContent[i])
+        
+    }
+
+    //console.log(global_shareContent)
+
 }
+
+
 // js: string 换 byte数组
 function stringToByte(str) {
     var bytes = new Array();
@@ -141,17 +157,36 @@ function hook(targetClass, targetReturn, targetMethod, targetArguments) {
             var has_taint = false
             for (var j = 0; j < arguments.length; j++) {
                 // String
-                if (targetArgumentsArr[j] == 'java.lang.String' && arguments[j].indexOf(taint) != -1) {
-                    has_taint = true
-                    console.log(arguments[j])
+                if (targetArgumentsArr[j] == 'java.lang.String') {
+
+
+                    //分享内容用一个数组装着,遍历查看是否存在于当前参数中
+                    for(var k = 0;k < global_shareContent.length;k++){
+                        if (arguments[j].indexOf(global_shareContent[k]) != -1) {
+                            taint = global_shareContent[k]
+                            has_taint = true
+                            console.log(arguments[j])
+                        }
+                    }
+
+                    // has_taint = true
+                    // console.log(arguments[j])
                 }
                 // byte[]
                 else if (targetArgumentsArr[j] == '[B') {
                     var javaString = Java.use('java.lang.String');
                     var str = javaString.$new(arguments[j]);
-                    if (str.indexOf(taint) != -1)
-                        has_taint = true
-                    console.log(str)
+
+                    for(var k = 0;k < global_shareContent.length;k++){
+                        if (str.indexOf(global_shareContent[k]) != -1) {
+                            taint = global_shareContent[k]
+                            has_taint = true
+                            console.log(str)
+                        }
+                    }
+                    // if (str.indexOf(taint) != -1)
+                    //     has_taint = true
+                    //console.log(str)
                 }
                 // other....
             }
@@ -227,6 +262,48 @@ function hook_set_text() {
     });
 }
 
+
+//hook shareSDK自己做的WXMediaMesssage
+function hook_shareSDK_wx(){
+    var wx = Java.use("cn.sharesdk.wechat.utils.WXMediaMessage$a")
+    wx.a.overload('cn.sharesdk.wechat.utils.WXMediaMessage').implementation = function(wxObject){
+
+        var bundle = this.a(wxObject)
+
+        var identifier = bundle.getString("_wxobject_identifier_")
+        var share_json = bundle.toString()
+
+        send(share_json)
+        
+
+        return bundle
+    }
+}
+
+//hook 微信自己的WXMediaMesssage
+function hook_normal_wx(){
+    var wx = Java.use("com.tencent.mm.opensdk.modelmsg.WXMediaMessage$Builder")
+    wx.toBundle.implementation = function(wxObject){
+        var bundle = this.toBundle(wxObject)
+        
+        var share_json = bundle.toString()
+
+        send(share_json)
+
+        return bundle
+    }
+}
+
+function hook_wechat_content(){
+    Java.perform(function (){
+        hook_shareSDK_wx()
+    })
+
+    Java.perform(function (){
+        hook_normal_wx()
+    })
+}
+
 // setTimeout setImmediate
 setTimeout(function () { //prevent timeout
     console.log("[*] Starting script");
@@ -239,10 +316,14 @@ setTimeout(function () { //prevent timeout
             console.log('hook err:', err, 'in: ')
         }
     })
+
+    Java.perform(function (){
+        hook_wechat_content()
+    })
 }, 1000)
 
 // export the rpc API
 rpc.exports = {
     hookentry: hook_entry, //导出名不可以有大写字母或者下划线
-    getsharecontent: get_share_content
+    getsharecontent: get_share_content,
 };
