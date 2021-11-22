@@ -27,12 +27,17 @@ def read_sink_file() -> List:
             d = dict()
             if line!='' and line[0]=='<':
                 items = line.split()
-                # ['<net.sourceforge.pebble.domain.Comment:', 'void', 'setAuthenticated(boolean)>', '->', '_SINK_']
-                d['targetClass'] = items[0][1:len(items[0])-1]
+                # ['<net.sourceforge.pebble.domain.Comment:', 'void', 'setAuthenticated(boolean)>', '->', '_SINK_'
                 left_bracket_index = 0
                 while items[2][left_bracket_index]!='(':
                     left_bracket_index+=1 
+                # targetClass
+                d['targetClass'] = items[0][1:len(items[0])-1]
+                # targetMethod
                 d['targetMethod'] = items[2][0:left_bracket_index]
+                # targetReturn
+                d['targetReturn'] = items[1]
+                # targetArguments
                 d['targetArguments'] = items[2][left_bracket_index:len(items[2])-1]
                 hook_info.append(d)
             line = f.readline()
