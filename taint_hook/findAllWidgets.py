@@ -4,20 +4,54 @@ import frida
 import base64
 from xml.dom.minidom import parse
 import os
+import json
 
 # apk_name = 'com.cns.mc.activity'
-apk_name = 'cn.demo.login'
+apk_name = 'com.tongcheng.android'
 js_script = 'hookMutilpleFunction.js'
 sink_file = 'my_sink.txt'
+share_content_list = []
 
 
+#这个地方是接受hook微信分享内容的处理函数
 def my_message_handler(message, payload):
-    # print(message)
-    # print(payload)
+    
     if message["type"] == "send":
-        # print(message["payload"])
+        #传进来的是一个share_json
+        share_json = message["payload"]
+        share_json = share_json[8:len(share_json) - 2]
+        
+        isthumbdata = False
+        index = 0
+        
+        share_json_list = []
+        for i in range(len(share_json)):
+            
+            if share_json[i] == '[':
+                isthumbdata = True
+                
+            if share_json[i] == ']':
+                isthumbdata = False
+                
+            
+            if share_json[i] == ',' and not isthumbdata:
+                key_value = share_json[index: i]
+                share_json_list.append(key_value)
+                index = i + 2
+                
+        #通过处理得到share content list
+        for item in share_json_list:
+            share_content = item.split('=', 1)[1]
+            share_content_list.append(share_content)
+        
+        #print("share_content_list = " + str(share_content_list))
+        #print(share_json)
+        #script.post({"my_data": share_content_list})
+        #share_content = json.loads(share_json)
+        #print(share_content)
+        
         # print( 'message:', message)
-        script.post({"my_data": message["payload"] + "gosec"})
+        #script.post({"my_data": message["payload"]})
 
 def read_sink_file() -> List:
     hook_info = []
@@ -27,17 +61,12 @@ def read_sink_file() -> List:
             d = dict()
             if line!='' and line[0]=='<':
                 items = line.split()
-                # ['<net.sourceforge.pebble.domain.Comment:', 'void', 'setAuthenticated(boolean)>', '->', '_SINK_'
+                # ['<net.sourceforge.pebble.domain.Comment:', 'void', 'setAuthenticated(boolean)>', '->', '_SINK_']
+                d['targetClass'] = items[0][1:len(items[0])-1]
                 left_bracket_index = 0
                 while items[2][left_bracket_index]!='(':
                     left_bracket_index+=1 
-                # targetClass
-                d['targetClass'] = items[0][1:len(items[0])-1]
-                # targetMethod
                 d['targetMethod'] = items[2][0:left_bracket_index]
-                # targetReturn
-                d['targetReturn'] = items[1]
-                # targetArguments
                 d['targetArguments'] = items[2][left_bracket_index:len(items[2])-1]
                 hook_info.append(d)
             line = f.readline()
@@ -57,6 +86,7 @@ script.on("message", my_message_handler)
 script.load()
 
 command = ""
+first_click = True
 while 1 == 1:
     command = input(
         "Enter command:\n1: Exit\n2: Call secret function\n3: get share content\nchoice:")
@@ -69,28 +99,17 @@ while 1 == 1:
                           'targetArguments': '(java.util.HashMap)'})
         script.exports.hookentry(hook_info)
     elif command == "3":
-        #这个是将当前的页面的内容全部获取，并解析分享的内容
-        cmd1 = "adb shell uiautomator dump /sdcard/ui1.xml"
-        os.system(cmd1)
+        if first_click:
+            isok = input("please do a share action and input 1 after sharing\n")
+            if isok == '1':
+                script.exports.getsharecontent(share_content_list)
+                first_click = False
+            else:
+                continue
 
-        cmd2 = "adb pull /sdcard/ui1.xml ."
-        os.system(cmd2)
-
-        # 读取文件
-        dom = parse('ui1.xml')
-        # 获取文档元素对象
-        data = dom.documentElement
-
-
-        share_content = []
-        # 获取 node
-        nodes = data.getElementsByTagName('node')
-
-        for node_i in nodes:
-            node_text = node_i.getAttribute('text')
-            if node_text != "":
-                share_content.append(node_text)
-
-        script.exports.getsharecontent(share_content)
+        else:
+            script.exports.getsharecontent(share_content_list)
+        
+        
     
     print("--------------------------------------------------")
