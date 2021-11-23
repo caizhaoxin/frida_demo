@@ -157,6 +157,7 @@ def tableGenerator(inputPath, outputPath):
             if txt_write:
                 txt_write = txt_write.group(2).replace('\n', '').rstrip() + " -> _SINK_\n"
                 f.write(txt_write)
+        f.close()
 
 
 tableGenerator(sys.argv[1], "./my_sink.txt")
