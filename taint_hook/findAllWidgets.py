@@ -11,6 +11,7 @@ apk_name = 'com.tongcheng.android'
 js_script = 'hookMutilpleFunction.js'
 sink_file = 'my_sink.txt'
 share_content_list = []
+android_sdk = "D:\AndroidSDK\platforms"
 
 
 #这个地方是接受hook微信分享内容的处理函数
@@ -72,44 +73,91 @@ def read_sink_file() -> List:
             line = f.readline()
     return hook_info
 
-# hook_info = read_sink_file()
-# print(hook_info)
 
-device = frida.get_usb_device()
-pid = device.spawn([apk_name])
-device.resume(pid)
-time.sleep(1)
-session = device.attach(pid)
-with open(js_script, encoding='utf-8') as f:
-    script = session.create_script(f.read())
-script.on("message", my_message_handler)
-script.load()
 
 command = ""
 first_click = True
 while 1 == 1:
-    command = input(
-        "Enter command:\n1: Exit\n2: Call secret function\n3: get share content\nchoice:")
-    if command == "1":
-        break
-    elif command == "2":  # 在这里调用
-        hook_info = []
-        hook_info.append({'targetClass': 'com.mob.tools.utils.Hashon',
-                          'targetMethod': 'fromHashMap',
-                          'targetArguments': '(java.util.HashMap)'})
-        script.exports.hookentry(hook_info)
-    elif command == "3":
-        if first_click:
-            isok = input("please do a share action and input 1 after sharing\n")
-            if isok == '1':
-                script.exports.getsharecontent(share_content_list)
-                first_click = False
-            else:
-                continue
-
-        else:
-            script.exports.getsharecontent(share_content_list)
-        
-        
+    isok = input("please open the app you want to check and input 1 when you open it")
     
-    print("--------------------------------------------------")
+    if isok == "1":
+    
+        command = input(
+            "Enter command:\n1: Exit\n2: start hook and hook sensitive function\n3: get share content\n4: get package name and get sensitive function\nchoice:")
+        if command == "1":
+            break
+        elif command == "2":  # 在这里调用
+            hook_info = []
+            hook_info = read_sink_file()
+            print(hook_info)
+
+            device = frida.get_usb_device()
+            pid = device.spawn([apk_name])
+            device.resume(pid)
+            time.sleep(1)
+            session = device.attach(pid)
+            with open(js_script, encoding='utf-8') as f:
+                script = session.create_script(f.read())
+            script.on("message", my_message_handler)
+            script.load()
+            
+            
+            script.exports.hookentry(hook_info)
+            
+            print("please do a share again")
+        elif command == "3":
+            if first_click:
+                isok = input("please do a share action and input 1 after sharing\n")
+                if isok == '1':
+                    script.exports.getsharecontent(share_content_list)
+                    first_click = False
+                else:
+                    continue
+
+            else:
+                script.exports.getsharecontent(share_content_list)
+                
+        elif command == "4":
+            print("reading the apk...")
+            try:
+                command_line = "adb shell dumpsys activity top | findstr ACTIVITY > ./activity.txt"
+                os.system(command_line)
+            except:
+                command_line = "adb shell dumpsys activity top | grep ACTIVITY > ./activity.txt"
+                os.system(command_line)
+            
+            
+            f = open('./activity.txt', 'r')                
+            line = f.readline()             
+            last_line = line
+            while line: 
+                last_line = line
+                line = f.readline() 
+            f.close()
+            
+            split_list = last_line.split(" ")
+            package_activity = split_list[3]
+            package = package_activity.split("/")[0]
+            
+            command_line1 = "adb shell pm path " + package + " > ./app_location.txt"
+            os.system(command_line1)
+            
+            f = open('./app_location.txt', 'r')
+            line = f.readline()
+            f.close()
+            
+            location = line[8:len(line)]
+            print(location)
+            
+            command_line2 = "adb pull " + location
+            os.system(command_line2)
+            
+            
+            excute_command = "java -Djava.ext.dirs=libs/ AndroidInstrument " + android_sdk + " base.apk method_body.txt my_sink.txt static_filter_sensitive_function.py" 
+            os.system(excute_command)
+            
+            
+            excute_match = "python3 static_filter_sensitive_function.py method_body.txt my_sink.txt"
+            os.system(excute_match)
+        
+        print("--------------------------------------------------")

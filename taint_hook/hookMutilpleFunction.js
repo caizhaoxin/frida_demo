@@ -153,7 +153,7 @@ function hook(targetClass, targetReturn, targetMethod, targetArguments) {
             // 本着宁可杀错可不放过的原则，原参数和返回值我们都加个taint
             // 处理参数
             if (arguments.length) console.log();
-            var taint = 'I am taint, destory u!!!'
+            var taint
             var has_taint = false
             for (var j = 0; j < arguments.length; j++) {
                 // String

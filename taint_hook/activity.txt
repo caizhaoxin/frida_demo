@@ -1,0 +1,4 @@
+  ACTIVITY com.android.systemui/.recents.RecentsActivity c100403 pid=4090
+  ACTIVITY com.ssports.mobile.video/.activity.MainActivity 759640b pid=13841
+  ACTIVITY com.miui.home/.launcher.Launcher e0b8801 pid=4434
+  ACTIVITY com.tongcheng.android/.TongchengMainActivity d84daba pid=25465
