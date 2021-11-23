@@ -150,45 +150,48 @@ function hook(targetClass, targetReturn, targetMethod, targetArguments) {
             //     console.log("\nBacktrace:\n" + bt);
             // });
 
-            // 本着宁可杀错可不放过的原则，原参数和返回值我们都加个taint
-            // 处理参数
             if (arguments.length) console.log();
             var taint
             var has_taint = false
             for (var j = 0; j < arguments.length; j++) {
+
+                var str
+
                 // String
                 if (targetArgumentsArr[j] == 'java.lang.String') {
-
-
-                    //分享内容用一个数组装着,遍历查看是否存在于当前参数中
-                    for(var k = 0;k < global_shareContent.length;k++){
-                        if (arguments[j].indexOf(global_shareContent[k]) != -1) {
-                            taint = global_shareContent[k]
-                            has_taint = true
-                            console.log(arguments[j])
-                        }
-                    }
-
-                    // has_taint = true
-                    // console.log(arguments[j])
+                    str = arguments[j]
                 }
                 // byte[]
                 else if (targetArgumentsArr[j] == '[B') {
                     var javaString = Java.use('java.lang.String');
-                    var str = javaString.$new(arguments[j]);
-
-                    for(var k = 0;k < global_shareContent.length;k++){
-                        if (str.indexOf(global_shareContent[k]) != -1) {
-                            taint = global_shareContent[k]
-                            has_taint = true
-                            console.log(str)
-                        }
-                    }
-                    // if (str.indexOf(taint) != -1)
-                    //     has_taint = true
-                    //console.log(str)
+                    str = javaString.$new(arguments[j]);
                 }
+                //HashMap
+                else if (targetArgumentsArr[j] == 'java.util.HashMap'){
+                    str = arguments[j].toString()
+                }
+                //JSONObject
+                else if (targetArgumentsArr[j] == 'org.json.JSONObject'){
+                    str = arguments[j].toString()
+                }
+                //JSONArray
+                else if (targetArgumentsArr[j] == 'org.json.JSONArray'){
+                    str = arguments[j].toString()
+                }
+
+
+
                 // other....
+
+                
+                //查看当前传入的参数是否包含了分享的内容，循环便利分享内容数组
+                for(var k = 0;k < global_shareContent.length;k++){
+                    if (str.indexOf(global_shareContent[k]) != -1) {
+                        taint = global_shareContent[k]
+                        has_taint = true
+                        console.log(str)
+                    }
+                }
             }
             //打印返回值
             var retval = this[targetMethod].apply(this, arguments); // rare crash (Frida bug?)
@@ -206,6 +209,20 @@ function hook(targetClass, targetReturn, targetMethod, targetArguments) {
                     console.log('str'+str)
                     retval = Java.array('byte', stringToByte(str));
                 }
+                //如果返回值是HashMap，那么就加多一对key value，key是gosec，value是分享的内容
+                if (targetReturn == 'java.util.HashMap'){
+                    retval.put('gosec!!', taint)
+                }
+
+                if (targetReturn == 'org.json.JSONObject'){
+                    retval.put('gosec!!', taint)
+                }
+
+                if (targetReturn == 'org.json.JSONArray'){
+                    retval.put(taint)
+                }
+
+
             }
             // console.log("\nretval: " + retval);
             // console.warn("\n*** exiting " + targetClassMethod);
@@ -244,23 +261,6 @@ function hook_entry(hook_info) {
     })
 }
 
-function hook_set_text() {
-    console.log("Script loaded successfully");
-    Java.perform(function () {
-        var tv_class = Java.use("android.widget.TextView");
-        tv_class.setText.overload("java.lang.CharSequence").implementation = function (x) {
-            var string_to_send = x.toString();
-            var string_to_recv;
-            send(string_to_send); // send data to python code
-            recv(function (received_json_object) {
-                string_to_recv = received_json_object.my_data
-                // console.log("string_to_recv: " + string_to_recv);
-            }).wait(); //block execution till the message is received
-            var my_string = Java.use("java.lang.String").$new(string_to_recv);
-            this.setText(my_string);
-        }
-    });
-}
 
 
 //hook shareSDK自己做的WXMediaMesssage
