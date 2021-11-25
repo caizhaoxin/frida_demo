@@ -6,26 +6,26 @@ from xml.dom.minidom import parse
 import os
 import json
 
-# apk_name = 'com.cns.mc.activity'
-apk_name = 'com.ssports.mobile.video'
+apk_name = 'com.cns.mc.activity'
+# apk_name = 'com.ssports.mobile.video'
 js_script = 'dynamic_taint.js'
 sink_file = 'my_sink1.txt'
 share_content_list = []
 
-#Mac
+# Mac
 android_sdk = '/Users/wujiangrong/Library/Android/sdk/platforms'
 
-#window
-#android_sdk = r'C:\Users\xinxin\AppData\Local\Android\Sdk\platforms'
+
+# window
+# android_sdk = r'C:\Users\xinxin\AppData\Local\Android\Sdk\platforms'
 
 
 # 这个地方是接受hook微信分享内容的处理函数
 def my_message_handler(message, payload):
-
     if message["type"] == "send":
         # 传进来的是一个share_json
         share_json = message["payload"]
-        #print(share_json)
+        # print(share_json)
         share_json = share_json[8:len(share_json) - 2]
 
         isthumbdata = False
@@ -60,6 +60,55 @@ def my_message_handler(message, payload):
         # script.post({"my_data": message["payload"]})
 
 
+# ([B,[[B,[Ljava.lang.String;,[[Ljava.lang.String;)
+
+# 用于转化单个参数
+def trans_standard_to_smail_form(str: str) -> str:
+    str = ''.join(str.split())
+    # 左括号的数量
+    left_bracket_num = 0
+    # 数左括号的数量
+    for c in str:
+        if c == '[':
+            left_bracket_num +=1
+    # 清楚所有左右括号的数量
+    str = str.replace('[','')
+    str = str.replace(']','')
+    if '.' in str:
+        return str
+    tran_dic = {
+        'boolean': 'Z',
+        'byte': 'B',
+        'char': 'C',
+        'double': 'D',
+        'float': 'F',
+        'int': 'I',
+        'long': 'J',
+        'short': 'S',
+    }
+    for key,val in tran_dic.items():
+        if key in str:
+            str = str.replace(key, val)
+    # 添加左括号到左边
+    for time in range(left_bracket_num):
+        str = '[' + str
+    return str
+
+# 处理全部
+def transform(str: str) -> str:
+    str = ''.join(str.split())
+    # 返回值类型，有(开头
+    if '(' in str:
+        arr = []
+        arr = str[1:len(str)-1].split(',')
+        for i in range(len(arr)):
+            arr[i] = trans_standard_to_smail_form(arr[i])
+        str = ','.join(arr)
+        str = '('+str+')'
+    else:
+        str = trans_standard_to_smail_form(str)
+    return str
+
 def read_sink_file() -> List:
     hook_info = []
     with open(sink_file, encoding='utf-8') as f:
@@ -69,23 +118,22 @@ def read_sink_file() -> List:
             if line != '' and line[0] == '<':
                 items = line.split()
                 # ['<net.sourceforge.pebble.domain.Comment:', 'void', 'setAuthenticated(boolean)>', '->', '_SINK_']
-                d['targetClass'] = items[0][1:len(items[0])-1]
+                d['targetClass'] = transform(items[0][1:len(items[0]) - 1])
                 left_bracket_index = 0
                 while items[2][left_bracket_index] != '(':
                     left_bracket_index += 1
-                d['targetReturn'] = items[1]
-                d['targetMethod'] = items[2][0:left_bracket_index]
-                d['targetArguments'] = items[2][left_bracket_index:len(
-                    items[2])-1]
+                d['targetReturn'] = transform(items[1])
+                d['targetMethod'] = transform(items[2][0:left_bracket_index])
+                d['targetArguments'] = transform(items[2][left_bracket_index:len(items[2]) - 1])
                 hook_info.append(d)
             line = f.readline()
     return hook_info
 
-
 command = ""
 first_click = True
 
-system_code = input("please input your operating System\n 1:Mac Os \n 2:Window Os \n")
+system_code = input(
+    "please input your operating System\n 1:Mac Os \n 2:Window Os \n")
 
 while 1 == 1:
     isok = input(
@@ -105,7 +153,7 @@ while 1 == 1:
         elif command == "2":  # 在这里调用
             hook_info = []
             hook_info = read_sink_file()
-            #print(hook_info)
+            # print(hook_info)
             script.exports.hookentry(hook_info)
 
             print("please do a share again")
@@ -159,13 +207,13 @@ while 1 == 1:
             os.system(command_line2)
 
             excute_command = "java -Djava.ext.dirs=libs/ AndroidInstrument " + android_sdk + \
-                " base.apk method_body.txt my_sink.txt static_filter_sensitive_function.py"
+                             " base.apk method_body.txt my_sink.txt static_filter_sensitive_function.py"
             os.system(excute_command)
 
-            execute_match = "python3 static_filter_sensitive_function.py method_body.txt my_sink.txt"
+            execute_match = "python static_filter_sensitive_function.py method_body.txt my_sink.txt"
             os.system(execute_match)
 
-            filter_execute = "python3 filter_useless_method.py " + package
+            filter_execute = "python filter_useless_method.py " + package
             os.system(filter_execute)
 
         elif command == "5":
@@ -178,6 +226,5 @@ while 1 == 1:
                 script = session.create_script(f.read())
             script.on("message", my_message_handler)
             script.load()
-
 
         print("--------------------------------------------------")
