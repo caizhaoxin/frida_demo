@@ -39,7 +39,7 @@ function get_share_content(share_content){
         
     }
 
-    //console.log(global_shareContent)
+    console.log(global_shareContent)
 
 }
 
@@ -147,8 +147,8 @@ function hook(targetClass, targetReturn, targetMethod, targetArguments) {
 
         overloads[i].implementation = function () {
             console.warn("\n*** entered " + targetClassMethod);
-            console.log('targetArguments = ' + targetArgumentsArr)
-            console.log("targetReturn = " + targetReturn)
+            //console.log('targetArguments = ' + targetArgumentsArr)
+            //console.log("targetReturn = " + targetReturn)
             //照常返回，不对返回值做操作
             var retval = this[targetMethod].apply(this, arguments);
             
@@ -187,81 +187,83 @@ function hook(targetClass, targetReturn, targetMethod, targetArguments) {
                         }
                     }
 
-                
+                console.log("type_of_argument = " + tpye_of_argument)
                 //不是基本的数据类型并且有返回值
                 if (tpye_of_argument != 'int' && tpye_of_argument != 'double' && tpye_of_argument != 'float' 
                 && tpye_of_argument != 'long' && tpye_of_argument != 'boolean' && tpye_of_argument != 'short'
-                && tpye_of_argument != 'byte' && tpye_of_argument != 'char' && tpye_of_argument != 'undefined'){
-
+                && tpye_of_argument != 'byte' && tpye_of_argument != 'char'){
+                    console.log('进来了！！！！！！！')
                     var argu_hash = ""
 
-                    //说明是一个数组
-                    if (tpye_of_argument.startsWith('[')){
-                        //hashCode
-                        argu_hash = argument.hashCode(argument)
-                    }else{
-                        //hashCode
+                    //就是在这个位置出错了
+                    try {
                         argu_hash = argument.hashCode()
+                    } catch (error) {
+                        console.warn(error)
                     }
+                    
 
-                    //不是新出现的分享内容，说明要在hash_list里面查找有没有taint
-                    if (argu_hash != "" && !is_find_new_taint){
-                        for (var k = 0;k < hash_taint_list.length; k++){
-                            //找到了说明当前的分享内容进入到了这个函数
-                            if (argu_hash == hash_taint_list[k]){
-                                //标记一下当前的位置
-                                taint_index = k
-                                //加入到function_trace中，相当于一个函数调用链
-                                function_trace[taint_index].push(targetClassMethod)
-                                break
-                            }
-                        }
-                    }
-
-                    if (taint_index != -1){
-                        if(targetReturn != 'int' && targetReturn != 'double' && targetReturn != 'float' 
-                        && targetReturn != 'long' && targetReturn != 'boolean' && targetReturn != 'short'
-                        && targetReturn != 'byte' && targetReturn != 'char' && targetReturn != 'undefined'){
-
-                            if (targetReturn.startsWith('[')){
-                                var hash_taint = retval.hashCode(retval)
-                                hash_taint_list[taint_index] = hash_taint
-                            }else{
-                                var hash_taint = retval.hashCode()
-                                hash_taint_list[taint_index] = hash_taint
-                            }
-
-                        }else{
-                            
-                            hash_taint_list[taint_index] = argu_hash
-
-                        }
-                    }
-
-                    if (argu_hash != '' && is_find_new_taint){
-                        if(targetReturn != 'int' && targetReturn != 'double' && targetReturn != 'float' 
-                        && targetReturn != 'long' && targetReturn != 'boolean' && targetReturn != 'short'
-                        && targetReturn != 'byte' && targetReturn != 'char' && targetReturn != 'undefined'){
-
-                            if (targetReturn.startsWith('[')){
-                                var hash_taint = retval.hashCode(retval)
-                                hash_taint_list[taint_count] = hash_taint
-                            }else{
-                                var hash_taint = retval.hashCode()
-                                hash_taint_list[taint_count] = hash_taint
-                            }
-
-                        }else{
-                            
-                            hash_taint_list[taint_count] = argu_hash
-
-                        }
-                    }
-
+                    console.log('出去了！！！！！！！！！')
                     
                 }
+
+                //不是新出现的分享内容，说明要在hash_list里面查找有没有taint
+                if (argu_hash != "" && !is_find_new_taint){
+                    for (var k = 0;k < hash_taint_list.length; k++){
+                        //找到了说明当前的分享内容进入到了这个函数
+                        if (argu_hash == hash_taint_list[k]){
+                            //标记一下当前的位置
+                            taint_index = k
+                            //加入到function_trace中，相当于一个函数调用链
+                            function_trace[taint_index].push(targetClassMethod)
+                            //break
+                        }
+                    }
+                }
+                console.log("targetReturn = " + targetReturn)
+                if (taint_index != -1){
+                    console.log("111111进来了！！！！！")
+                    if(targetReturn != 'int' && targetReturn != 'double' && targetReturn != 'float' 
+                    && targetReturn != 'long' && targetReturn != 'boolean' && targetReturn != 'short'
+                    && targetReturn != 'byte' && targetReturn != 'char' && targetReturn != 'void'){
+
+                        
+                        var hash_taint = retval.hashCode()
+                        hash_taint_list[taint_index] = hash_taint
+                        
+
+                    }else{
+                        
+                        hash_taint_list[taint_index] = argu_hash
+
+                    }
+                }
+
                 
             }
+
+            if (is_find_new_taint){
+                if(targetReturn != 'int' && targetReturn != 'double' && targetReturn != 'float' 
+                && targetReturn != 'long' && targetReturn != 'boolean' && targetReturn != 'short'
+                && targetReturn != 'byte' && targetReturn != 'char' && targetReturn != 'void'){
+
+                    
+                    var hash_taint = retval.hashCode()
+                    hash_taint_list[taint_count] = hash_taint
+                    
+
+                }else{
+                    
+                    hash_taint_list[taint_count] = argu_hash
+
+                }
+            }
+
+            if (taint_index != -1 || is_find_new_taint){
+                console.log('============================' + targetClassMethod)
+            }
+
+            console.log('11111111111111111111111111111')
 
             return retval;
 
