@@ -49,6 +49,7 @@ def my_message_handler(message, payload):
         for item in share_json_list:
             share_content = item.split('=', 1)[1]
             share_content_list.append(share_content)
+            
 
         # print("share_content_list = " + str(share_content_list))
         # print(share_json)
@@ -226,5 +227,7 @@ while 1 == 1:
                 script = session.create_script(f.read())
             script.on("message", my_message_handler)
             script.load()
+        elif command == "6":
+            script.exports.printtaintlist()
 
         print("--------------------------------------------------")
