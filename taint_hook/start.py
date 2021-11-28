@@ -6,8 +6,8 @@ from xml.dom.minidom import parse
 import os
 import json
 
-apk_name = 'com.cns.mc.activity'
-# apk_name = 'com.ssports.mobile.video'
+# apk_name = 'com.cns.mc.activity'
+apk_name = 'com.ssports.mobile.video'
 js_script = 'dynamic_taint.js'
 sink_file = 'my_sink.txt'
 share_content_list = []
@@ -166,10 +166,9 @@ while 1 == 1:
         elif command == "2":  # 在这里调用
             hook_info = []
             hook_info = read_sink_file()
-            # print(hook_info)
+            print(script.exports)
             script.exports.hookentry(hook_info)
-
-            print("please do a share again")
+            # print("please do a share again")
         elif command == "3":
             if first_click:
                 isok = input(
@@ -179,10 +178,8 @@ while 1 == 1:
                     first_click = False
                 else:
                     continue
-
             else:
                 script.exports.getsharecontent(share_content_list)
-
         elif command == "4":
             print("reading the apk...")
             if system_code == "1":
@@ -191,7 +188,7 @@ while 1 == 1:
             else:
                 command_line = "adb shell dumpsys activity top | findstr ACTIVITY > ./activity.txt"
                 os.system(command_line)
-
+            
             f = open('./activity.txt', 'r')
             line = f.readline()
             last_line = line
@@ -236,7 +233,7 @@ while 1 == 1:
             time.sleep(1)
             session = device.attach(pid)
             with open(js_script, encoding='utf-8') as f:
-                script = session.create_script(f.read())
+                script = session.create_script(f.read(), runtime = "v8")
             script.on("message", my_message_handler)
             script.load()
         elif command == "6":
