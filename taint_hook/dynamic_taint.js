@@ -331,6 +331,9 @@ function hook(targetClass, targetReturn, targetMethod, targetArguments) {
     targetReturn = targetReturn.replace(/\s+/g, "")
     targetMethod = targetMethod.replace(/\s+/g, "")
     targetArguments = targetArguments.replace(/\s+/g, "")
+    // 静态构造函数在frida层hook不到，暂时不处理
+    if(targetMethod=='<clinit>')
+        throw '静态构造函数在frida层hook不到，暂时不处理'
     //生成数组，方便下面的逻辑处理
     var targetArgumentsArr = targetArguments.substr(1, targetArguments.length - 2).split(',')
     // targetClassMethod

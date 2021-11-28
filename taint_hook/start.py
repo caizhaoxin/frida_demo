@@ -9,15 +9,15 @@ import json
 apk_name = 'com.cns.mc.activity'
 # apk_name = 'com.ssports.mobile.video'
 js_script = 'dynamic_taint.js'
-sink_file = 'my_sink1.txt'
+sink_file = 'my_sink.txt'
 share_content_list = []
 
 # Mac
-android_sdk = '/Users/wujiangrong/Library/Android/sdk/platforms'
+# android_sdk = '/Users/wujiangrong/Library/Android/sdk/platforms'
 
 
 # window
-# android_sdk = r'C:\Users\xinxin\AppData\Local\Android\Sdk\platforms'
+android_sdk = r'C:\Users\xinxin\AppData\Local\Android\Sdk\platforms'
 
 
 # 这个地方是接受hook微信分享内容的处理函数
@@ -64,32 +64,44 @@ def my_message_handler(message, payload):
 # ([B,[[B,[Ljava.lang.String;,[[Ljava.lang.String;)
 
 # 用于转化单个参数
+# if 方法名是构造方法，则  <init> -> $init 
+# if 类型不是数组类型： 直接返回
+# else 基本类型：[特殊标志
+#      类类型：[L类名;
 def trans_standard_to_smail_form(str: str) -> str:
     str = ''.join(str.split())
+    # 构造函数，直接转换并返回
+    if str == '<init>':
+        return '$init'
+    if '[' not in str:
+        return str
     # 左括号的数量
     left_bracket_num = 0
     # 数左括号的数量
     for c in str:
         if c == '[':
             left_bracket_num +=1
-    # 清楚所有左右括号的数量
+    # 清除所有左右括号
     str = str.replace('[','')
     str = str.replace(']','')
+    # 类类型
     if '.' in str:
-        return str
-    tran_dic = {
-        'boolean': 'Z',
-        'byte': 'B',
-        'char': 'C',
-        'double': 'D',
-        'float': 'F',
-        'int': 'I',
-        'long': 'J',
-        'short': 'S',
-    }
-    for key,val in tran_dic.items():
-        if key in str:
-            str = str.replace(key, val)
+        str = 'L' + str + ';'
+    # 基本类型
+    else:
+        tran_dic = {
+            'boolean': 'Z',
+            'byte': 'B',
+            'char': 'C',
+            'double': 'D',
+            'float': 'F',
+            'int': 'I',
+            'long': 'J',
+            'short': 'S',
+        }
+        for key,val in tran_dic.items():
+            if key in str:
+                str = str.replace(key, val)
     # 添加左括号到左边
     for time in range(left_bracket_num):
         str = '[' + str
@@ -211,7 +223,7 @@ while 1 == 1:
                              " base.apk method_body.txt my_sink.txt static_filter_sensitive_function.py"
             os.system(excute_command)
 
-            execute_match = "python static_filter_sensitive_function.py method_body.txt my_sink.txt"
+            execute_match = "python static_filter_sensitive_function.py method_body.txt my_sink1.txt"
             os.system(execute_match)
 
             filter_execute = "python filter_useless_method.py " + package
