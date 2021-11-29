@@ -7,7 +7,7 @@ import os
 import json
 
 # apk_name = 'com.cns.mc.activity'
-apk_name = 'com.ssports.mobile.video'
+apk_name = 'cn.demo.sink_demo'
 js_script = 'dynamic_taint.js'
 sink_file = 'my_sink.txt'
 share_content_list = []
@@ -49,7 +49,6 @@ def my_message_handler(message, payload):
         for item in share_json_list:
             share_content = item.split('=', 1)[1]
             share_content_list.append(share_content)
-            
 
         # print("share_content_list = " + str(share_content_list))
         # print(share_json)
@@ -64,7 +63,7 @@ def my_message_handler(message, payload):
 # ([B,[[B,[Ljava.lang.String;,[[Ljava.lang.String;)
 
 # 用于转化单个参数
-# if 方法名是构造方法，则  <init> -> $init 
+# if 方法名是构造方法，则  <init> -> $init
 # if 类型不是数组类型： 直接返回
 # else 基本类型：[特殊标志
 #      类类型：[L类名;
@@ -80,10 +79,10 @@ def trans_standard_to_smail_form(str: str) -> str:
     # 数左括号的数量
     for c in str:
         if c == '[':
-            left_bracket_num +=1
+            left_bracket_num += 1
     # 清除所有左右括号
-    str = str.replace('[','')
-    str = str.replace(']','')
+    str = str.replace('[', '')
+    str = str.replace(']', '')
     # 类类型
     if '.' in str:
         str = 'L' + str + ';'
@@ -99,7 +98,7 @@ def trans_standard_to_smail_form(str: str) -> str:
             'long': 'J',
             'short': 'S',
         }
-        for key,val in tran_dic.items():
+        for key, val in tran_dic.items():
             if key in str:
                 str = str.replace(key, val)
     # 添加左括号到左边
@@ -108,6 +107,8 @@ def trans_standard_to_smail_form(str: str) -> str:
     return str
 
 # 处理全部
+
+
 def transform(str: str) -> str:
     str = ''.join(str.split())
     # 返回值类型，有(开头
@@ -121,6 +122,7 @@ def transform(str: str) -> str:
     else:
         str = trans_standard_to_smail_form(str)
     return str
+
 
 def read_sink_file() -> List:
     hook_info = []
@@ -137,10 +139,12 @@ def read_sink_file() -> List:
                     left_bracket_index += 1
                 d['targetReturn'] = transform(items[1])
                 d['targetMethod'] = transform(items[2][0:left_bracket_index])
-                d['targetArguments'] = transform(items[2][left_bracket_index:len(items[2]) - 1])
+                d['targetArguments'] = transform(
+                    items[2][left_bracket_index:len(items[2]) - 1])
                 hook_info.append(d)
             line = f.readline()
     return hook_info
+
 
 command = ""
 first_click = True
@@ -166,7 +170,7 @@ while 1 == 1:
         elif command == "2":  # 在这里调用
             hook_info = []
             hook_info = read_sink_file()
-            print(script.exports)
+            # print(script.exports)
             script.exports.hookentry(hook_info)
             # print("please do a share again")
         elif command == "3":
@@ -188,7 +192,7 @@ while 1 == 1:
             else:
                 command_line = "adb shell dumpsys activity top | findstr ACTIVITY > ./activity.txt"
                 os.system(command_line)
-            
+
             f = open('./activity.txt', 'r')
             line = f.readline()
             last_line = line
@@ -233,7 +237,7 @@ while 1 == 1:
             time.sleep(1)
             session = device.attach(pid)
             with open(js_script, encoding='utf-8') as f:
-                script = session.create_script(f.read(), runtime = "v8")
+                script = session.create_script(f.read(), runtime="v8")
             script.on("message", my_message_handler)
             script.load()
         elif command == "6":

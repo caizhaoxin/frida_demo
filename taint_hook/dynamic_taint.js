@@ -205,13 +205,16 @@ function sha256_digest(data) {
 }
 
 //分享的内容
-var global_shareContent_set = new Set()
-var hash_taint_set = new Set()
-// var global_shareContent_set = []
-// var hash_taint_set = []
+var globalShareContentSet = new Set()
+// 污点表
+var hashTaintSet = new Set()
+// 基本数据类型列表
+var base_types = ['int', 'byte', 'long', 'double', 'float', 'boolean', 'void', 'char']
+// var globalShareContentSet = []
+// var hashTaintSet = []
 
 function print_taint_list() {
-    console.log(hash_taint_set)
+    console.log(hashTaintSet)
 }
 
 // 打印调用栈
@@ -239,9 +242,9 @@ function get_share_content(share_content) {
         if (shareContent[i] == "null") {
             continue
         }
-        global_shareContent_set.add(shareContent[i])
+        globalShareContentSet.add(shareContent[i])
     }
-    console.log('分享内容：', global_shareContent_set)
+    console.log('分享内容：', globalShareContentSet)
 }
 
 
@@ -308,20 +311,67 @@ function getTargetArgumentsByOverload(overload) {
     curArguments += ")";
     return curArguments
 }
-function argument_handle(argument_val, returnType) {
+// 参数转化
+function argument_handle(argumentVal, returnType) {
     // string
     if (returnType == 'java.lang.String') {
-        argument_val = argument_val.toString()
+        argumentVal = argumentVal.toString()
     }
     // byte[]
     else if (returnType == '[B') {
-        argument_val = Java.use('java.lang.String').$new(argument_val);
+        argumentVal = Java.use('java.lang.String').$new(argumentVal).toString();
     }
     // other
     else {
-        argument_val = argument_val.toString()
+        argumentVal = argumentVal.toString()
     }
-    return argument_val
+    return argumentVal
+}
+// 判断是否是我们关心的参数类型
+// 1、基本类型不关心
+// 2、基本类型数组中我们只关心 []byte, 其他的什么[]int,[]float，丢弃掉
+// 3、我们关心其他所有的类
+function is_interest_type(returnType) {
+    // 含有点.  那就是类 我们关心 不管是类还是类数组
+    if (returnType.indexOf('.') != -1) return true
+    // 基本类型数组中我们只关心 []byte, 其他的什么[]int,[]float，丢弃掉
+    if (returnType == '[B') return true
+    // 其他的都不关心
+    return false
+}
+// 检测是否是污点
+function checkIsTaint(targetMethod, argumentVal, argumentsType, logInfo) {
+    //处理参数
+    // 包括了分享内容 || 判断hashcode是否在set里面
+    // 参数为空 或 基本数据类型  肯定不是污点 return false
+    // console.log(targetMethod, ' -> argumentValStr: ', is_interest_type(argumentsType))
+    if (argumentVal == null || !is_interest_type(argumentsType))
+        return false
+    // 根据argumentVal的类型argumentsType，转化成string
+    var argumentValStr = argument_handle(argumentVal, argumentsType)
+    // 取argumentValStr的hash，这里暂时用加密去做
+    var argumentValCode = sha256_digest(argumentValStr)
+    // 是否有share content的标记
+    var hasShareContent = false
+    // 是否有在污点table里面的标记
+    var hasInTaintTable = false
+    if (hashTaintSet.has(argumentValCode)) {
+        hasInTaintTable = true
+    }
+    if (globalShareContentSet.has(argumentValStr)) {
+        hasShareContent = true
+        hashTaintSet.add(argumentValCode)
+    }
+
+    console.log('---------------------------------------------------')
+    console.log(logInfo)
+    console.log(targetMethod, ' -> hashTaintSet: ', hashTaintSet.size)
+    console.log(targetMethod, ' -> argumentsType: ', argumentsType)
+    console.log(targetMethod, ' -> argument_val_str: ', argumentValStr)
+    console.log(targetMethod, ' -> has_in_taint_table: ', hasInTaintTable)
+    console.log(targetMethod, ' -> has_share_content: ', hasShareContent)
+
+    return hasInTaintTable || hasShareContent
 }
 function hook(targetClass, targetReturn, targetMethod, targetArguments) {
     //替换掉所有的空格, 防止写配置的时候不小心
@@ -345,70 +395,61 @@ function hook(targetClass, targetReturn, targetMethod, targetArguments) {
     //打印日志：追踪的方法有多少个重载
     // console.log("Tracing " + targetClass + '.' + targetMethod + " [" + overloadCount + " overload(s)]");
     // 成功hook的标记
-    var hook_succe = false
+    var hookSucce = false
     //每个重载都进入一次
     for (var i = 0; i < overloadCount; i++) {
         //获取参数类型字符串
         var overload = overloads[i]
         var curArguments = getTargetArgumentsByOverload(overload)
         var curReturnTypeName = overload.returnType.className
-        // 查看所有property
-        // for(var name in overload){
-        //     console.log(name)
-        // }
+        // 是否添加return的值到污点table的标志
+        var addReturnValToTaintSet = false
         //参数不符合预期， continue！
         if (curArguments != targetArguments) continue
         if (curReturnTypeName != targetReturn) continue
         // 成功hook到，设置标志，方便循环后处理
-        hook_succe = true
+        hookSucce = true
         overloads[i].implementation = function () {
-            // console.warn("\n*** entered " + targetClassMethod);
-            //console.log('targetArguments = ' + targetArgumentsArr)
-            //console.log("targetReturn = " + targetReturn)
-            //照常返回，不对返回值做操作
-            var retval = this[targetMethod].apply(this, arguments);
-            // return retval
-            for (var j = 0; j < arguments.length; j++) {
-                //处理参数
-                // 包括了分享内容 || 判断hashcode是否在set里面
-                var argument_val = arguments[j]
-                var arguments_type = targetArgumentsArr[j]
-                // 参数为空 或 基本数据类型  continue
-                if (argument_val == null || arguments_type.indexOf('.') != -1)
-                    continue
-                var argument_val_str = argument_handle(argument_val, arguments_type)
-                var argument_val_code = sha256_digest(argument_val_str)
-                var has_share_content = false
-                var has_in_taint_table = false
-                if (hash_taint_set.has(argument_val_code)) {
-                    has_in_taint_table = true
-                }
-                if (global_shareContent_set.has(argument_val_str)) {
-                    has_share_content = true
-                    hash_taint_set.add(argument_val_code)
-                }
-
-                // 处理返回值
-                var retval_str_code = ''
-                // targetReturn非基本数据类型 且 不是void
-                if (targetReturn.indexOf('.') != -1 && targetReturn != 'void' && retval != null) {
-                    retval_str_code = sha256_digest(retval.toString())
-                }
-                if (has_in_taint_table || has_share_content) {
-                    hash_taint_set.add(retval_str_code)
-                    if (targetMethod.indexOf('http') || targetMethod.indexOf('https')) {
-                        console.log('泄露了！！！')
+            try {
+                console.log("\n*** entered " + targetClassMethod);
+                // console.log('----------------------')
+                //console.log('targetArguments = ' + targetArgumentsArr)
+                //console.log("targetReturn = " + targetReturn)
+                for (var j = 0; j < arguments.length; j++) {
+                    //处理参数
+                    // 包括了分享内容 || 判断hashcode是否在set里面
+                    var argumentVal = arguments[j]
+                    var argumentsType = targetArgumentsArr[j]
+                    if (checkIsTaint(targetMethod, argumentVal, argumentsType, '检查参数：')) {
+                        addReturnValToTaintSet = true
+                        // todo...泄露后的逻辑
+                        if (targetMethod.toLowerCase().indexOf('http') != -1
+                            || targetMethod.toLowerCase().indexOf('https') != -1
+                            || targetMethod.toLowerCase().indexOf('post') != -1) {
+                            console.log(targetMethod, ' 泄露了！！！')
+                        }
+                        // 只处理一个参数，虽然其他参数也有可能被污染，但是肯定会传到其他方法里面，因此只处理一个，避免重复处理
+                        break
                     }
-                    // 只处理一个参数，虽然其他参数也有可能被污染，但是肯定会传到其他方法里面，因此只处理一个，避免重复处理
-                    break
                 }
+                // 处理返回值
+                var returnVal = this[targetMethod].apply(this, arguments);
+                if (checkIsTaint(targetMethod, returnVal, targetReturn, '检查返回值：') || addReturnValToTaintSet) {
+                    // todo...泄露后的逻辑
+                    if (targetMethod.toLowerCase().indexOf('http') != -1
+                        || targetMethod.toLowerCase().indexOf('https') != -1
+                        || targetMethod.toLowerCase().indexOf('post') != -1) {
+                        console.log(targetMethod, ' 泄露了！！！')
+                    }
+                }
+                return returnVal
+            } catch (err) {
+                console.error('hook err:', err)
             }
-            return retval
         }
         // 找到并成功hook到了，结束当前循环
     }
-    // console.log('----------------------------')
-    if (!hook_succe)
+    if (!hookSucce)
         throw '找不到指定的方法，无法hook.....'
 }
 // hook_entry入口
@@ -420,15 +461,18 @@ function hook_entry(hook_info) {
             console.log('java虚拟机未加载！')
             return
         }
+        // temp
         var l = 500
         var r = 1000
+        globalShareContentSet.add('My location is SYSU_SOSE')
+        ///////////////////////
         for (var i = 0; i < hook_info.length; i++) {
-            if(i<l || r<i)  continue
+            // if(i<l || r<i)  continue
             var targetClass = hook_info[i]['targetClass']
             var targetReturn = hook_info[i]['targetReturn']
             var targetMethod = hook_info[i]['targetMethod']
             var targetArguments = hook_info[i]['targetArguments']
-            // console.log(targetClass, targetMethod, targetArguments)
+            console.log(targetClass, targetMethod, targetArguments)
             try {
                 // hook 对应的方法
                 hook(targetClass, targetReturn, targetMethod, targetArguments)
